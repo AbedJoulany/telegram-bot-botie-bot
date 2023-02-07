@@ -7,6 +7,8 @@ from flask import Flask, Response, request
 import pandas as pd
 from os.path import exists
 from primePy import primes
+import re
+from pytube import YouTube
 
 df = pd.DataFrame()
 
@@ -20,23 +22,41 @@ app = Flask(__name__)
 
 # ---------------------------For Eitan-------------------------------------------
 
-TOKEN = '5661253066:AAEX2EQg95zFw8fONhnB5MSUmPFqtcsdFYM'
+"""TOKEN = '5661253066:AAEX2EQg95zFw8fONhnB5MSUmPFqtcsdFYM'
 TELEGRAM_INIT_WEBHOOK_URL = 'https://api.telegram.org/bot{}/setWebhook?url=' \
                             'https://5104-5-28-184-10.eu.ngrok.io/message'. \
     format(TOKEN)
+requests.get(TELEGRAM_INIT_WEBHOOK_URL)"""
+
+# ----------------------------For Abed-------------------------------------------
+TOKEN = '5716676902:AAFt3xSuQSRg4YjUiHGcKstbzU9fMCDphWc'
+NGROK_URL = 'https://9046-82-80-173-170.eu.ngrok.io'
+TELEGRAM_INIT_WEBHOOK_URL = 'https://api.telegram.org/bot{}/setWebhook?url={}/message'.format(TOKEN, NGROK_URL)
 requests.get(TELEGRAM_INIT_WEBHOOK_URL)
-
 # --------------------------------------------------------------------------------
-
 
 @app.route('/sanity')
 def sanity(): return "Server is running"
+
+
+def parse_message(message):
+    chat_id = message['message']['chat']['id']
+    txt = message['message']['text']
+    pattern = r'/[a-zA-z]+'
+    ticker = re.findall(pattern, txt)
+    if ticker:
+        symbol = ticker[0]
+    else:
+        symbol = ''
+
+    print(ticker, symbol)
 
 
 @app.route('/message', methods=["POST"])
 def handle_message():
     print("got message")
     json_got = request.get_json()
+    #print(parse_message(json_got))
     chat_id = json_got['message']['chat']['id']
     command = (json_got['message']['text']).split()[0]
 
@@ -67,12 +87,24 @@ def handle_message():
         df.to_hdf('bot_db.h5', 'data')
         result = "Bye Bye"
 
+    elif command == "/download":
+        url = (json_got['message']['text']).split ()[1]
+        yt = YouTube (url)
+        stream = yt.streams.get_highest_resolution ()
+        stream.download ()
+        result = "in download"
+    elif command == "/get":
+        result = "in get"
+        with open ('Siilawy.mp4', 'rb') as f:
+            requests.get ("https://api.telegram.org/bot{}/sendMessage?chat_id={}&text={}"
+                 .format(TOKEN, chat_id, result), files={'Siilawy.mp4': f})
+
     else:
         result = "command not recognized"
 
     requests.get("https://api.telegram.org/bot{}/sendMessage?chat_id={}&text={}"
                  .format(TOKEN, chat_id, result))
-    return Response("success")
+    return Response("success", status = 200)
 
 
 def prime(num):
